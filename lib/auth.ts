@@ -1,10 +1,27 @@
 import GithubProvider from "next-auth/providers/github";
 import { JWT } from "next-auth/jwt";
 import * as jose from 'jose'
-import { JwkPrivateFields, JwkPublicFields, JwtPayload, userProps } from "@/types/auth";
-import { NextAuthOptions } from "next-auth";
+import { JwkPrivateFields, JwkPublicFields, JwtPayload } from "@/types/auth";
+import { DefaultSession, DefaultUser, NextAuthOptions, Session, User } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import prisma from "@/utils/prismaClient";
+import prisma from "@/lib/prismaClient";
+import { SessionService } from "@/services/session-service";
+import { NextApiRequest, NextApiResponse } from "next";
+
+declare module "next-auth" {
+  interface User extends DefaultUser {
+    id: string; // we are adding "id"
+  }
+
+  interface Session extends DefaultSession {
+    user?: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+  }
+}
 
 
 class JwtAuthHandler {
@@ -67,9 +84,9 @@ export class AuthHandler {
     /**
      * @method - authOptions for NextAuth
      */
-    public static AuthOptions(): NextAuthOptions {
+    public static AuthOptions(req?: NextApiRequest, res?: NextApiResponse): NextAuthOptions {
         return {
-            adapter: PrismaAdapter(prisma),
+            // adapter: PrismaAdapter(prisma),
             providers: [
                 GithubProvider({
                     clientId: process.env.GITHUB_ID || "",
@@ -106,17 +123,42 @@ export class AuthHandler {
             callbacks: {
                 /**
                  * @method jwt = add the extra clamins when yo
+                 * @returns {JWT} - token for user auth 
                  */
-                async jwt({token, user} : {token: JWT, user: userProps}) {
+                async jwt({token, user} : {token: JWT, user: User}): Promise<JWT> {
                     if (user) {
-                        token.id = user.id;
-                        token.name = user.name;
-                        token.email = user.email;
+                        const session = SessionService.createUserSession(
+                            user.id,
+                            "random",
+                            "unknown"
+                        )
+                        token.sessionToken = (await session).sessionToken;
                     }
 
-                    return token;
+                    return token; 
+                },
+            
+                /**
+                 * @method session - user session generation
+                 * @returns {Session} - token for user session 
+                 */
+                async session({ session, token }: {session: Session, token: JWT}): Promise<Session> {
+                    if (session.user) {
+                        session.user.id = token.id as string;
+                        session.user.name = token.name;
+                        session.user.email = token.email;
+                    }
+
+                    return session;
                 }
-            }
+            },
+            pages: {
+                signIn: "/auth/signin",
+                signOut: "/auth/signout",
+                newUser: '/auth/register'
+            },
+            secret: "test-random",
+            debug: true
 
         }
     }

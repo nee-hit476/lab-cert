@@ -1,19 +1,10 @@
-"use client";
-import { JwtGen } from "@/lib/auth";
+import ClientHome from "@/components/clientHome";
+import ClientSessionProvider from "@/components/ClientSessionProvider";
+
 export default function Home() {
-
-  const handleOnClick = async () => {
-    const token = await JwtGen({
-      username: "Nishidh",
-      role: "user"
-    }, "7d")
-
-    console.log(token);
-  }
-
   return (
-    <div className="h-screen w-screen">
-      <button onClick={() => handleOnClick()}>Generate Token</button>
-    </div>
+    <ClientSessionProvider>
+      <ClientHome />
+    </ClientSessionProvider>
   );
 }

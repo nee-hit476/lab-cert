@@ -66,6 +66,6 @@ export interface JwtPayload extends Record<string, unknown> {
 
 export interface userProps {
     id: string;
-    name: string;
-    email: string;
+    name?: string | null;
+    email?: string | null;
 }
