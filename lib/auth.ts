@@ -3,10 +3,10 @@ import { JWT } from "next-auth/jwt";
 import * as jose from 'jose'
 import { JwkPrivateFields, JwkPublicFields, JwtPayload } from "@/types/auth";
 import { DefaultSession, DefaultUser, NextAuthOptions, Session, User } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import prisma from "@/lib/prismaClient";
 import { SessionService } from "@/services/session-service";
 import { NextApiRequest, NextApiResponse } from "next";
+import createCustomPrismaAdapter from "./adapters/custom-prisma-adapter";
+import { randomUUID } from "crypto";
 
 declare module "next-auth" {
   interface User extends DefaultUser {
@@ -86,7 +86,7 @@ export class AuthHandler {
      */
     public static AuthOptions(req?: NextApiRequest, res?: NextApiResponse): NextAuthOptions {
         return {
-            // adapter: PrismaAdapter(prisma),
+            adapter: createCustomPrismaAdapter(),
             providers: [
                 GithubProvider({
                     clientId: process.env.GITHUB_ID || "",
@@ -127,10 +127,16 @@ export class AuthHandler {
                  */
                 async jwt({token, user} : {token: JWT, user: User}): Promise<JWT> {
                     if (user) {
-                        const session = SessionService.createUserSession(
+                        console.log(user);
+                        token.id = user.id;
+                        token.name = user.name;
+                        token.email = user.email;
+
+                        const session = SessionService.upsertSession(
+                            randomUUID(),
                             user.id,
-                            "random",
-                            "unknown"
+                            "unknown",
+                            "0.0.0.0"
                         )
                         token.sessionToken = (await session).sessionToken;
                     }

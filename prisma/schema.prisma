@@ -21,11 +21,14 @@ model Account {
   accountId              String    @id @default(uuid())
   github_username String    @unique
   github_email    String    @unique
+  provider           String
+  providerAccountId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   role Role @default(USER)
   sessions Session[]
   certificate Certificate[]
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
